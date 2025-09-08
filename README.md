@@ -9,9 +9,11 @@ This extension provides ComfyUI nodes for generating images using the [AI Horde]
 - **AI Horde Image Generate**: Generate images using AI Horde's distributed network
 - **AI Horde Model List**: Get list of available models on the network
 - Support for multiple models (Deliberate, Anything Diffusion, AlbedoBase XL, etc.)
-- Configurable image dimensions, steps, CFG scale, and seed
+- Configurable image dimensions, steps, CFG scale, and more
 - Anonymous generation or use your own API key
-- Async image generation with proper ComfyUI integration
+- Image generation with proper ComfyUI integration
+- Support for txt2img, img2img, inpainting, outpainting, and remix modes
+- Support for LORA and textual inversion models
 
 ## Installation
 
@@ -25,7 +27,7 @@ This extension provides ComfyUI nodes for generating images using the [AI Horde]
 1. Clone this repository into your `ComfyUI/custom_nodes` directory:
    ```bash
    cd ComfyUI/custom_nodes
-   git clone https://github.com/malte0621/hordeai.git
+   git clone https://github.com/malte0621/hordeai-comfy.git
    ```
 2. Install dependencies:
    ```bash
@@ -53,6 +55,13 @@ This node generates images using the AI Horde network:
 - `steps`: Sampling steps (1-100, default 20)
 - `cfg_scale`: Classifier-free guidance scale (1.0-20.0, default 7.5)
 - `seed`: Random seed (-1 for random)
+- `denoising_strength`: Denoising strength for img2img (0.0-1.0, default 1.0)
+- `source_image`: Input image for img2img or inpainting (ComfyUI tensor)
+- `source_processing`: "txt2img", "img2img", "inpainting", "outpainting", or "remix" (default "txt2img")
+- `sampler_name`: Sampler to use (e.g., "k_lms", "k_euler_a", default "k_lms")
+- `karras`: Whether to use Karras noise schedule (default True)
+- `loras`: List of LORA model names to apply
+- `textual_inversions`: List of textual inversion names to apply
 
 **Output:**
 - `images`: Generated images as ComfyUI tensors
