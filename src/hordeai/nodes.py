@@ -591,6 +591,13 @@ class AIHordeLora:
                         "tooltip": "CLIP strength multiplier (0.0-2.0)",
                     },
                 ),
+                "is_version": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "Whether the LoRA name is a version ID (True) or a name (False)",
+                    },
+                ),
             },
             "optional": {
                 "loras_list": (
@@ -613,6 +620,7 @@ class AIHordeLora:
         lora_name: str,
         model_strength: float,
         clip_strength: float,
+        is_version: bool,
         loras_list: Optional[List] = None,
     ):
         if not HORDE_SDK_AVAILABLE:
@@ -625,6 +633,7 @@ class AIHordeLora:
             name=lora_name,
             model=model_strength,
             clip=clip_strength,
+            is_version=is_version,
         )
 
         # Start with existing list or create new one
