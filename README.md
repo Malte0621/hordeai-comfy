@@ -31,7 +31,7 @@ This extension provides ComfyUI nodes for generating images using the [AI Horde]
    ```
 2. Install dependencies:
    ```bash
-   cd hordeai
+   cd hordeai-comfy
    pip install -r requirements.txt
    ```
 3. Restart ComfyUI
@@ -101,7 +101,7 @@ Get your free API key at [AI Horde](https://aihorde.net/).
 To install the dev dependencies and pre-commit (will run the ruff hook), do:
 
 ```bash
-cd hordeai
+cd hordeai-comfy
 pip install -e .[dev]
 pre-commit install
 ```
