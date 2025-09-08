@@ -3,7 +3,7 @@ requires = ["setuptools>=70.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hordeai"
+name = "hordeai-comfy"
 version = "0.0.1"
 description = "AI Horde integration as custom node(s) for ComfyUI"
 authors = [
@@ -35,9 +35,9 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/malte0621/hordeai"
-BugTracker = "https://github.com/malte0621/hordeai/issues"
-Documentation = "https://github.com/malte0621/hordeai/wiki"
+Repository = "https://github.com/malte0621/hordeai-comfy"
+BugTracker = "https://github.com/malte0621/hordeai-comfy/issues"
+Documentation = "https://github.com/malte0621/hordeai-comfy/wiki"
 
 
 [tool.comfy]
@@ -45,7 +45,7 @@ PublisherId = "malte0621"
 DisplayName = "HordeAI"
 Icon = ""
 Tags = []
-Repository = "https://github.com/malte0621/hordeai"
+Repository = "https://github.com/malte0621/hordeai-comfy"
 
 includes = []
 
