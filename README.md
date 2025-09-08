@@ -143,5 +143,5 @@ You need to make an account on https://registry.comfy.org and create an API key 
 - [ ] Create an api key on the Registry for publishing from Github. [Instructions](https://docs.comfy.org/registry/publishing#create-an-api-key-for-publishing).
 - [ ] Add it to your Github Repository Secrets as `REGISTRY_ACCESS_TOKEN`.
 
-A Github action will run on every git push. You can also run the Github action manually. Full instructions [here](https://docs.comfy.org/registry/publishing). Join our [discord](https://discord.com/invite/comfyorg) if you have any questions!
+A Github action will run on every git push. You can also run the Github action manually. Full instructions [here](https://docs.comfy.org/registry/publishing).
 
