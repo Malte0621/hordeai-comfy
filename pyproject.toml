@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hordeai-comfy"
-version = "0.0.1"
+version = "0.0.2"
 description = "AI Horde integration as custom node(s) for ComfyUI"
 authors = [
   {name = "Malte0621", email = "yt.malte0621@gmail.com"}
