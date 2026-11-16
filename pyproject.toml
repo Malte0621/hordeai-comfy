@@ -11,15 +11,15 @@ authors = [
 ]
 readme = "README.md"
 license = {text = "GNU General Public License v3"}
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 classifiers = []
 dependencies = [
-    "horde-sdk>=0.17.1",
-    "aiohttp>=3.9.0",
-    "Pillow>=10.0.0",
+    "horde-sdk>=0.33.3,<0.34",
+    "aiohttp>=3.11.13",
+    "Pillow>=11.1.0",
     "numpy>=1.24.0",
     "torch>=2.0.0",
-    "loguru>=0.7.0",
+    "loguru>=0.7.3",
 ]
 
 
@@ -49,6 +49,10 @@ Repository = "https://github.com/malte0621/hordeai-comfy"
 
 includes = []
 
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["hordeai*"]
+
 [tool.setuptools.package-data]
 "*" = ["*.*"]
 
@@ -57,6 +61,8 @@ minversion = "8.0"
 testpaths = [
     "tests",
 ]
+addopts = ["--import-mode=importlib", "--confcutdir=tests"]
+pythonpath = ["src"]
 
 [tool.mypy]
 files = "."
@@ -76,7 +82,7 @@ disable_error_code = "attr-defined"
 # extend-exclude = ["static", "ci/templates"]
 line-length = 140
 src = ["src", "tests"]
-target-version = "py39"
+target-version = "py312"
 
 # Add rules to ban exec/eval
 [tool.ruff.lint]
