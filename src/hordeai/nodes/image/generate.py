@@ -115,8 +115,8 @@ class AIHordeImageGenerate:
             },
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("images", "details")
     FUNCTION = "generate_images"
     CATEGORY = "AI Horde/Image"
     DESCRIPTION = cleandoc(__doc__)
@@ -136,7 +136,7 @@ class AIHordeImageGenerate:
         source_processing: str = "txt2img",
         source_mask: torch.Tensor | None = None,
         sampling: ImageSamplingSettings | None = None,
-    ) -> tuple[torch.Tensor]:
+    ) -> tuple[torch.Tensor, str]:
         from comfy import model_management
 
         check_interrupt = model_management.throw_exception_if_processing_interrupted
@@ -166,12 +166,12 @@ class AIHordeImageGenerate:
         try:
             request = settings.to_request()
             print(f"Sending request to AI Horde: {request.prompt[:100]}...")
-            pil_images = await HordeClient().generate(request, check_interrupt)
-            result_tensor = images_to_tensor(pil_images)
+            result = await HordeClient().generate(request, check_interrupt)
+            result_tensor = images_to_tensor(result.items)
             check_interrupt()
-            print(f"Successfully generated {len(pil_images)} image(s)")
+            print(f"Successfully generated {len(result.items)} image(s)")
 
-            return (result_tensor,)
+            return (result_tensor, "[" + ",".join(result.details) + "]")
 
         except model_management.InterruptProcessingException:
             raise

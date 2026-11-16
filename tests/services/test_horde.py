@@ -26,6 +26,7 @@ from tests.horde_server import (
     wait_for_event,
 )
 from tests.horde_server import horde_server as horde_server
+from tests.worker_details import expect_image_worker, worker_path
 
 
 class ProcessingInterrupted(BaseException):
@@ -79,16 +80,17 @@ def test_pending_generation_downloads_url_and_base64_in_rgb_batch_order(horde_se
         pending=True,
     )
     horde_server.expect("GET", "/images/red.webp", image_bytes(remote_image))
+    expect_image_worker(horde_server)
 
     images = asyncio.run(bounded_generate(HordeClient(poll_interval=0.01), make_request(num_images=2)))
-    result = images_to_tensor(images)
+    result = images_to_tensor(images.items)
 
     assert result.shape == (2, 2, 2, 3)
     assert result.dtype == torch.float32
     expected = torch.tensor([[1.0, 0.0, 0.0], [128 / 255, 128 / 255, 128 / 255]], dtype=torch.float32)
     torch.testing.assert_close(result, expected[:, None, None, :].expand(2, 2, 2, 3), rtol=0, atol=0)
     assert horde_server.paths("POST") == [SUBMIT_PATH]
-    assert horde_server.paths("GET") == [check_path(job_id), check_path(job_id), status_path(job_id), "/images/red.webp"]
+    assert horde_server.paths("GET") == [check_path(job_id), check_path(job_id), status_path(job_id), "/images/red.webp", worker_path(str(UUID(int=2000)))]
     assert horde_server.paths("DELETE") == []
 
 
@@ -341,6 +343,7 @@ def test_successive_runs_do_not_reuse_a_failed_jobs_id(horde_server):
     horde_server.expect("GET", check_path(failed_id), {"message": "First job failed", "rc": "WorkerUnavailable"}, status_code=503)
     horde_server.expect("DELETE", status_path(failed_id), status())
     enqueue_job(horde_server, success_id, [encoded_image(Image.new("RGB", (2, 2), "blue"))])
+    expect_image_worker(horde_server)
     client = HordeClient(poll_interval=0.01)
     interruption = ProcessingInterrupted("No third job")
 
@@ -351,7 +354,7 @@ def test_successive_runs_do_not_reuse_a_failed_jobs_id(horde_server):
         with pytest.raises(Exception, match="First job failed"):
             await bounded_generate(client, make_request())
         images = await bounded_generate(client, make_request())
-        assert images[0].convert("RGB").getpixel((0, 0)) == (0, 0, 255)
+        assert images.items[0].convert("RGB").getpixel((0, 0)) == (0, 0, 255)
         with pytest.raises(ProcessingInterrupted) as raised:
             await bounded_generate(client, make_request(), pre_submit_interrupt)
         assert raised.value is interruption
@@ -360,4 +363,4 @@ def test_successive_runs_do_not_reuse_a_failed_jobs_id(horde_server):
 
     assert horde_server.paths("POST") == [SUBMIT_PATH, SUBMIT_PATH]
     assert horde_server.paths("DELETE") == [status_path(failed_id)]
-    assert horde_server.paths("GET") == [check_path(failed_id), check_path(success_id), status_path(success_id)]
+    assert horde_server.paths("GET") == [check_path(failed_id), check_path(success_id), status_path(success_id), worker_path(str(UUID(int=2000)))]

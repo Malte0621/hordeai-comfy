@@ -43,9 +43,9 @@ class AIHordeTextGenerate:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "INT")
-    RETURN_NAMES = ("text", "model", "seed")
-    OUTPUT_IS_LIST = (True, True, True)
+    RETURN_TYPES = ("STRING", "STRING", "INT", "STRING")
+    RETURN_NAMES = ("text", "model", "seed", "details")
+    OUTPUT_IS_LIST = (True, True, True, True)
     FUNCTION = "generate_text"
     CATEGORY = "AI Horde/Text"
     DESCRIPTION = __doc__
@@ -60,7 +60,7 @@ class AIHordeTextGenerate:
         num_texts: int = 1,
         context_fit: str = "reject",
         sampling: TextSamplingSettings | None = None,
-    ) -> tuple[list[str], list[str], list[int]]:
+    ) -> tuple[list[str], list[str], list[int], list[str]]:
         from comfy import model_management
 
         check_interrupt = model_management.throw_exception_if_processing_interrupted
@@ -79,7 +79,8 @@ class AIHordeTextGenerate:
         results = await HordeClient().generate_text(request, check_interrupt)
         check_interrupt()
         return (
-            [cast(str, result.text) for result in results],
-            [result.model for result in results],
-            [result.seed if result.seed is not None else -1 for result in results],
+            [cast(str, result.text) for result in results.items],
+            [result.model for result in results.items],
+            [result.seed if result.seed is not None else -1 for result in results.items],
+            results.details,
         )

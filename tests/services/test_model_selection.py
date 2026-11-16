@@ -12,6 +12,7 @@ from hordeai.generation.request import GenerationSettings
 from hordeai.services.horde import HordeClient
 from tests.horde_server import encoded_image, enqueue_job
 from tests.horde_server import horde_server as horde_server
+from tests.worker_details import expect_image_worker
 
 REFERENCE_PATH = "/model_references/v2/image_generation"
 
@@ -36,9 +37,10 @@ def test_omitted_image_model_resolves_online_models_and_omits_invalid_txt2img_fi
     })
     job_id = str(UUID(int=601))
     enqueue_job(horde_server, job_id, [encoded_image(Image.new("RGB", (2, 2), "red"))])
+    expect_image_worker(horde_server)
     request = GenerationSettings(prompt="A landscape", width=64, height=64, num_images=1).to_request()
     images = asyncio.run(HordeClient().generate(request, lambda: None))
-    assert images[0].getpixel((0, 0)) == (255, 0, 0)
+    assert images.items[0].getpixel((0, 0)) == (255, 0, 0)
     submitted = next(record for record in horde_server.requests if record.method == "POST")
     assert submitted.body["models"] == ["custom", "first", "second"]
     assert "source_processing" not in submitted.body
@@ -59,6 +61,7 @@ def test_blank_model_with_no_online_workers_never_submits_a_generation(horde_ser
 def test_explicit_image_model_needs_no_discovery_and_preserves_exact_name(horde_server):
     job_id = str(UUID(int=602))
     enqueue_job(horde_server, job_id, [encoded_image(Image.new("RGB", (2, 2), "blue"))])
+    expect_image_worker(horde_server)
     request = GenerationSettings(prompt="A landscape", width=64, height=64, num_images=1, model=" custom/model ").to_request()
     asyncio.run(HordeClient().generate(request, lambda: None))
     assert horde_server.requests[0].body["models"] == ["custom/model"]

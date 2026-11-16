@@ -22,6 +22,8 @@ from horde_sdk.ai_horde_api.consts import MODEL_STATE, MODEL_TYPE
 from horde_sdk.worker.model_meta import ImageModelLoadResolver
 
 
+from ..generation.results import GenerationResult
+from .details import generation_details
 from .lifecycle import GenerationSession
 from .model_selection import compatible_image_models
 
@@ -38,7 +40,7 @@ class HordeClient:
         self,
         request: ImageGenerateAsyncRequest,
         check_interrupt: Callable[[], None],
-    ) -> list[Image.Image]:
+    ) -> GenerationResult[Image.Image]:
         """Generate images, deleting the remote request when local execution stops."""
         check_interrupt()
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._request_timeout)) as session:
@@ -61,8 +63,9 @@ class HordeClient:
                     image, _ = await generation.wait_for(downloader.download_image_from_generation(result))
                     image.load()
                     images.append(image)
+                details = await generation_details(client, generation, status, images=images)
                 check_interrupt()
-                return images
+                return GenerationResult(images, details)
 
     async def get_models(self, top_n: int = 20) -> list[str]:
         """Return model names ranked by monthly usage without loading model references."""
@@ -81,7 +84,7 @@ class HordeClient:
         self,
         request: TextGenerateAsyncRequest,
         check_interrupt: Callable[[], None],
-    ) -> list[GenerationKobold]:
+    ) -> GenerationResult[GenerationKobold]:
         """Return completed LLM responses in server order; never return partial jobs."""
         check_interrupt()
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._request_timeout)) as session:
@@ -93,8 +96,9 @@ class HordeClient:
                     raise RuntimeError(f"AI Horde completed {len(status.generations)} of {expected} requested text generations")
                 if any(result.text is None for result in status.generations):
                     raise RuntimeError("AI Horde returned a text generation without text")
+                details = await generation_details(client, generation, status)
                 check_interrupt()
-                return status.generations
+                return GenerationResult(status.generations, details)
 
     async def get_active_models(self, model_type: str, top_n: int = 100) -> list[str]:
         """Discover online models without restricting custom or newly added model names."""

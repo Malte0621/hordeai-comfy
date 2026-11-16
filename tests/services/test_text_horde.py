@@ -11,6 +11,7 @@ from hordeai.services.horde import HordeClient
 from tests.horde_server import GENERATION_TIMEOUT, wait_for_event
 from tests.horde_server import horde_server as horde_server
 from tests.text_horde import TEXT_SUBMIT_PATH, text_status, text_status_path, text_submission
+from tests.worker_details import expect_text_worker, worker_path
 
 
 class Interrupted(BaseException):
@@ -26,12 +27,13 @@ def test_text_status_waits_for_all_requested_results_without_image_endpoints(hor
     horde_server.expect("POST", TEXT_SUBMIT_PATH, text_submission(job_id), status_code=202)
     horde_server.expect("GET", text_status_path(job_id), text_status(["first partial"], done=False))
     horde_server.expect("GET", text_status_path(job_id), text_status(["first complete", "second complete"]))
+    expect_text_worker(horde_server)
     results = asyncio.run(HordeClient(poll_interval=0.01).generate_text(request(2), lambda: None))
-    assert [result.text for result in results] == ["first complete", "second complete"]
-    assert [result.model for result in results] == ["koboldcpp/model-0", "koboldcpp/model-1"]
-    assert [result.seed for result in results] == [41, 42]
+    assert [result.text for result in results.items] == ["first complete", "second complete"]
+    assert [result.model for result in results.items] == ["koboldcpp/model-0", "koboldcpp/model-1"]
+    assert [result.seed for result in results.items] == [41, 42]
     assert horde_server.paths("DELETE") == []
-    assert horde_server.paths("GET") == [text_status_path(job_id)] * 2
+    assert horde_server.paths("GET") == [text_status_path(job_id)] * 2 + [worker_path(str(UUID(int=3000)))]
     submitted = horde_server.requests[0]
     assert submitted.body["models"] == []
     assert submitted.body["params"]["n"] == 2

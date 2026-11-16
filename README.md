@@ -66,6 +66,7 @@ This node generates images using the AI Horde network:
 
 **Output:**
 - `images`: Generated images as ComfyUI tensors
+- `details`: JSON array describing each generated image, in tensor batch order. Connect to **Preview as Text**.
 
 ### AI Horde Image Sampling Node
 
@@ -100,7 +101,20 @@ Find this node under **AI Horde/Text**. Only `prompt` is required. Connect `text
 | `context_fit` | `reject` refuses oversized prompts; `ignore` lets workers truncate; `grow` increases context and may cost more kudos. Default: `reject`. |
 | `sampling` | Optional `HORDE_TEXT_SAMPLING` connection from **AI Horde Text Sampling**. |
 
-Outputs are aligned ComfyUI lists: `text` (`STRING`), the actual `model` (`STRING`), and the returned `seed` (`INT`). With one completion, each list contains one value. With multiple completions, downstream nodes normally execute once per value. No partial text is returned after cancellation or a failed batch.
+Outputs are aligned ComfyUI lists: `text` (`STRING`), the actual `model` (`STRING`), the returned `seed` (`INT`), and `details` (`STRING`, JSON). With one completion, each list contains one value. With multiple completions, downstream nodes normally execute once per value. No partial text is returned after cancellation or a failed batch.
+
+### Worker Statistics and Generation Details
+
+The appended `details` output preserves existing output indices. Image generation returns one JSON array for the image batch; text generation returns one JSON document per completion.
+
+Each entry contains:
+- `request`: Horde request ID, kind, prompt, allowed models, submitted parameters, source-processing/context-fit policy, and final status including total request kudos.
+- `generation`: Result index, returned model and seed, generation ID when supplied, state, censor flag when applicable, and worker metadata. Image entries include actual downloaded width and height.
+- `worker`: Worker ID and name from that result, plus a public `stats` snapshot containing available performance, threads, uptime, completed requests, kudos rewards, model support, and image/token limits.
+
+Worker statistics are fetched once per distinct worker per generation call. They describe the worker's snapshot, not the duration or token count of an individual completion. Missing or failed lookups set `worker.stats.available` to `false` and include an `error`; completed images/text remain usable. Cancellation remains active during lookups.
+
+Details exclude API keys, source/generated image data, generated text, and private worker fields such as IP address or contact details. Request prompts remain present; treat saved details as workflow data.
 
 ### Sampling and Model Selection
 
@@ -197,7 +211,9 @@ src/hordeai/
     generation/request.py         Typed image settings and SDK request construction
     generation/image.py           Immutable image sampling settings and payload construction
     generation/text.py            Typed LLM generation and sampling settings
+    generation/results.py         Completed outputs with aligned JSON details
     services/horde.py             Image/text SDK operations and model discovery
+    services/details.py           Public worker snapshots and generation metadata
     services/lifecycle.py         Shared polling, interrupted submission, and remote cleanup
     services/model_selection.py   Compatible online image-model resolution
     utils/images.py               Tensor, PIL, and base64 WebP conversion

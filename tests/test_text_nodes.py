@@ -1,6 +1,7 @@
 """ComfyUI list outputs compose without multiplying model selections."""
 
 import asyncio
+import json
 from uuid import UUID
 
 import pytest
@@ -14,20 +15,26 @@ from tests.horde_server import GENERATION_TIMEOUT
 from tests.horde_server import horde_server as horde_server
 from tests.test_hordeai import comfy_management as comfy_management
 from tests.text_horde import TEXT_SUBMIT_PATH, text_status, text_status_path, text_submission
+from tests.worker_details import expect_text_worker
 
 
 def test_text_node_returns_aligned_string_model_and_seed_lists(horde_server, comfy_management):
     job_id = str(UUID(int=701))
     horde_server.expect("POST", TEXT_SUBMIT_PATH, text_submission(job_id), status_code=202)
     horde_server.expect("GET", text_status_path(job_id), text_status(["A red sunrise.", "A snowy mountain."]))
+    expect_text_worker(horde_server)
     (sampling,) = AIHordeTextSampling().make_sampling(0.3, 0.8, 10, 0.1, 1.2, "END")
     result = asyncio.run(asyncio.wait_for(AIHordeTextGenerate().generate_text("Describe a landscape.", num_texts=2, sampling=sampling), GENERATION_TIMEOUT))
-    assert result == (["A red sunrise.", "A snowy mountain."], ["koboldcpp/model-0", "koboldcpp/model-1"], [41, 42])
+    assert result[:3] == (["A red sunrise.", "A snowy mountain."], ["koboldcpp/model-0", "koboldcpp/model-1"], [41, 42])
+    details = [json.loads(value) for value in result[3]]
+    assert [entry["generation"]["seed"] for entry in details] == [41, 42]
+    assert [entry["generation"]["model"] for entry in details] == ["koboldcpp/model-0", "koboldcpp/model-1"]
+    assert all(entry["worker"]["stats"]["tokens_generated"] == 1234 for entry in details)
     submitted = horde_server.requests[0]
     assert submitted.body["params"]["temperature"] == 0.3
     assert submitted.body["params"]["stop_sequence"] == ["END"]
     assert submitted.body["models"] == []
-    assert AIHordeTextGenerate.OUTPUT_IS_LIST == (True, True, True)
+    assert AIHordeTextGenerate.OUTPUT_IS_LIST == (True, True, True, True)
     assert hordeai.NODE_CLASS_MAPPINGS["AIHordeTextGenerate"] is AIHordeTextGenerate
 
 

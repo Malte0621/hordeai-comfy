@@ -1,6 +1,7 @@
 """Saved workflow compatibility and end-to-end public node contracts."""
 
 import asyncio
+import json
 import inspect
 import sys
 from types import ModuleType
@@ -31,6 +32,7 @@ from tests.horde_server import (
     wait_for_event,
 )
 from tests.horde_server import horde_server as horde_server
+from tests.worker_details import expect_image_worker
 
 
 SAMPLERS = [
@@ -49,8 +51,8 @@ WORKFLOW_CONTRACTS = {
             "textual_inversions": "TIS_LIST", "source_image": "IMAGE", "source_processing": SOURCE_PROCESSING,
             "source_mask": "IMAGE",
         },
-        "outputs": ("IMAGE",),
-        "output_names": ("images",),
+        "outputs": ("IMAGE", "STRING"),
+        "output_names": ("images", "details"),
         "method": "generate_images",
     },
     "AIHordeImageSampling": {
@@ -182,6 +184,7 @@ def test_generate_node_returns_rgb_tensor_batch_from_real_sdk_results(horde_serv
         job_id,
         [encoded_image(Image.new("RGB", (2, 2), "green")), encoded_image(Image.new("L", (2, 2), 64))],
     )
+    expect_image_worker(horde_server)
     checked = []
 
     def check_interrupt():
@@ -201,12 +204,16 @@ def test_generate_node_returns_rgb_tensor_batch_from_real_sdk_results(horde_serv
         )
     )
 
-    assert isinstance(result, tuple) and len(result) == 1
+    assert isinstance(result, tuple) and len(result) == 2
     batch = result[0]
     assert batch.shape == (2, 2, 2, 3)
     assert batch.dtype == torch.float32
     expected = torch.tensor([[0, 128 / 255, 0], [64 / 255] * 3], dtype=torch.float32)
     torch.testing.assert_close(batch, expected[:, None, None, :].expand(2, 2, 2, 3), rtol=0, atol=0)
+    details = json.loads(result[1])
+    assert [entry["generation"]["seed"] for entry in details] == ["1", "2"]
+    assert all(entry["worker"]["stats"]["requests_fulfilled"] == 25 for entry in details)
+    assert all(entry["request"]["id"] == job_id for entry in details)
     assert checked, "Node must pass the actual ComfyUI interruption callback to the generation service"
     submitted = next(request for request in horde_server.requests if request.method == "POST")
     assert submitted.body["prompt"] == "A landscape ### blurry"
