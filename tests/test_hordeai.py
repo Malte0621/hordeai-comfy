@@ -17,6 +17,7 @@ from hordeai.nodes.adapters.lora import AIHordeLora
 from hordeai.nodes.adapters.textual_inversion import AIHordeTextualInversion
 from hordeai.nodes.image.generate import AIHordeImageGenerate
 from hordeai.nodes.image.models import AIHordeModelList
+from hordeai.nodes.image.sampling import AIHordeImageSampling
 from tests.horde_server import (
     GENERATION_TIMEOUT,
     SUBMIT_PATH,
@@ -44,14 +45,25 @@ WORKFLOW_CONTRACTS = {
         "required": {"prompt": "STRING", "width": "INT", "height": "INT", "num_images": "INT"},
         "optional": {
             "model": "STRING",
-            "negative_prompt": "STRING", "api_key": "STRING", "steps": "INT", "cfg_scale": "FLOAT", "seed": "INT",
-            "denoising_strength": "FLOAT", "sampler_name": SAMPLERS, "karras": "BOOLEAN", "loras": "LORAS_LIST",
+            "negative_prompt": "STRING", "api_key": "STRING", "sampling": "HORDE_IMAGE_SAMPLING", "loras": "LORAS_LIST",
             "textual_inversions": "TIS_LIST", "source_image": "IMAGE", "source_processing": SOURCE_PROCESSING,
             "source_mask": "IMAGE",
         },
         "outputs": ("IMAGE",),
         "output_names": ("images",),
         "method": "generate_images",
+    },
+    "AIHordeImageSampling": {
+        "class": AIHordeImageSampling,
+        "display": "AI Horde Image Sampling",
+        "required": {
+            "steps": "INT", "cfg_scale": "FLOAT", "seed": "INT", "denoising_strength": "FLOAT",
+            "sampler_name": SAMPLERS, "karras": "BOOLEAN",
+        },
+        "optional": {},
+        "outputs": ("HORDE_IMAGE_SAMPLING",),
+        "output_names": ("sampling",),
+        "method": "make_sampling",
     },
     "AIHordeModelList": {
         "class": AIHordeModelList,
@@ -115,13 +127,13 @@ def test_saved_workflow_sockets_outputs_and_dispatch_methods_survive_module_move
     node_class = hordeai.NODE_CLASS_MAPPINGS[identifier]
     inputs = node_class.INPUT_TYPES()
 
-    assert set(inputs) == {"required", "optional"}
+    assert set(inputs) == ({"required"} if identifier == "AIHordeImageSampling" else {"required", "optional"})
     for group in ("required", "optional"):
-        assert {name: specification[0] for name, specification in inputs[group].items()} == contract[group]
+        assert {name: specification[0] for name, specification in inputs.get(group, {}).items()} == contract[group]
     assert node_class.RETURN_TYPES == contract["outputs"]
     assert node_class.RETURN_NAMES == contract["output_names"]
     assert node_class.FUNCTION == contract["method"]
-    expected_category = "AI Horde/Image" if identifier in {"AIHordeImageGenerate", "AIHordeModelList"} else "AI Horde/Adapters"
+    expected_category = "AI Horde/Image" if identifier in {"AIHordeImageGenerate", "AIHordeModelList", "AIHordeImageSampling"} else "AI Horde/Adapters"
     assert node_class.CATEGORY == expected_category
     method = getattr(node_class, node_class.FUNCTION)
     assert set(inspect.signature(method).parameters) - {"self"} == set(contract["required"]) | set(contract["optional"])
@@ -178,10 +190,11 @@ def test_generate_node_returns_rgb_tensor_batch_from_real_sdk_results(horde_serv
     comfy_management.throw_exception_if_processing_interrupted = check_interrupt
     (loras,) = AIHordeLora().create_lora_entry("76693", 0.6, 1.4, True)
     (tis,) = AIHordeTextualInversion().create_ti_entry("72437", "negprompt", 0.75)
+    (sampling,) = AIHordeImageSampling().make_sampling(37, 9.0, 42, 0.35, "k_euler_a", False)
     result = asyncio.run(
         asyncio.wait_for(
             AIHordeImageGenerate().generate_images(
-                "A landscape", 64, 64, 2, "Deliberate", negative_prompt="blurry", seed=42,
+                "A landscape", 64, 64, 2, "Deliberate", negative_prompt="blurry", sampling=sampling,
                 loras=loras, textual_inversions=tis,
             ),
             GENERATION_TIMEOUT,
@@ -198,6 +211,11 @@ def test_generate_node_returns_rgb_tensor_batch_from_real_sdk_results(horde_serv
     submitted = next(request for request in horde_server.requests if request.method == "POST")
     assert submitted.body["prompt"] == "A landscape ### blurry"
     assert submitted.body["params"]["seed"] == "42"
+    assert submitted.body["params"]["steps"] == 37
+    assert submitted.body["params"]["cfg_scale"] == 9.0
+    assert submitted.body["params"]["sampler_name"] == "k_euler_a"
+    assert submitted.body["params"]["karras"] is False
+    assert submitted.body["params"]["denoising_strength"] == 1.0
     assert submitted.body["params"]["loras"][0]["name"] == "76693"
     assert submitted.body["params"]["tis"][0]["inject_ti"] == "negprompt"
     assert horde_server.paths("DELETE") == []

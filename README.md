@@ -7,6 +7,7 @@ This extension provides ComfyUI nodes for generating images and text using the [
 ## Features
 
 - **AI Horde Image Generate**: Generate images using AI Horde's distributed network
+- **AI Horde Image Sampling**: Share immutable sampling settings between image generation nodes
 - **AI Horde Model List**: Get list of available models on the network
 - **AI Horde Text Generate**: Generate LLM completions as composable text outputs
 - **AI Horde Text Model List**: Discover online LLMs, including custom model names
@@ -57,19 +58,32 @@ This node generates images using the AI Horde network:
 - `model`: Optional exact model name. Leave blank or omit the input to use any compatible online image model.
 - `negative_prompt`: Text describing what to avoid in the image
 - `api_key`: Your AI Horde API key (leave empty for anonymous)
-- `steps`: Sampling steps (1-100, default 20)
-- `cfg_scale`: Classifier-free guidance scale (1.0-20.0, default 7.5)
-- `seed`: Random seed (-1 for random)
-- `denoising_strength`: Denoising strength for img2img (0.0-1.0, default 1.0)
+- `sampling`: Optional `HORDE_IMAGE_SAMPLING` connection from **AI Horde Image Sampling**. Unconnected uses standard defaults.
 - `source_image`: Input image for img2img or inpainting (ComfyUI tensor)
 - `source_processing`: "txt2img", "img2img", "inpainting", "outpainting", or "remix" (default "txt2img")
-- `sampler_name`: Sampler to use (e.g., "k_lms", "k_euler_a", default "k_lms")
-- `karras`: Whether to use Karras noise schedule (default True)
 - `loras`: List of LORA model names to apply
 - `textual_inversions`: List of textual inversion names to apply
 
 **Output:**
 - `images`: Generated images as ComfyUI tensors
+
+### AI Horde Image Sampling Node
+
+Find this node under **AI Horde/Image**. Connect its `sampling` output to one or more **AI Horde Image Generate** nodes. Dimensions, prompts, model selection, source images, masks, and adapters remain on the generation node.
+
+| Input | Meaning |
+|---|---|
+| `steps` | Sampling steps; default 20, range 1–100. |
+| `cfg_scale` | Classifier-free guidance scale; default 7.5, range 1.0–20.0. |
+| `seed` | Default -1 requests a random seed. Explicit seeds range from 0 to 2147483647. |
+| `denoising_strength` | Source-image denoising strength; default 1.0, range 0.0–1.0. Plain txt2img always uses 1.0. |
+| `sampler_name` | Sampling algorithm; default `k_lms`. Existing sampler choices are retained. |
+| `karras` | Use the Karras noise schedule where supported; default `True`. |
+
+One connected sampling node shares these values across generation branches without sharing dimensions, source processing, or adapter lists. Omitting the connection preserves the defaults above.
+
+**Existing workflows:** move the six sampling values into an **AI Horde Image Sampling** node. Recreate the **AI Horde Image Generate** node and reconnect its remaining inputs, then connect `sampling`. The old generation node's sampling widgets and API arguments have been removed; old positional widget layouts must not be reused.
+
 
 ### AI Horde Text Generate Node
 
@@ -103,6 +117,7 @@ flowchart LR
     Sampling[Text Sampling] --> Text
     Text --> Preview[Preview as Text]
     Text --> Image[Image Generate prompt]
+    ImageSampling[Image Sampling] --> Image
     Image --> Images[Preview Image]
 ```
 
@@ -174,12 +189,13 @@ __init__.py                       ComfyUI extension entry point
 src/hordeai/
     registry.py                   Stable node identifiers and display names
     nodes/
-        image/                    Image generation and model-list nodes
+        image/                    Image generation, reusable sampling, and model-list nodes
         text/                     LLM generation, sampling, and online model-list nodes
         adapters/                 Separate LoRA and textual inversion modules
         model_select.py           Whole-list model selection for workflows
         inputs.py                 Shared model and API-key widget specifications
     generation/request.py         Typed image settings and SDK request construction
+    generation/image.py           Immutable image sampling settings and payload construction
     generation/text.py            Typed LLM generation and sampling settings
     services/horde.py             Image/text SDK operations and model discovery
     services/lifecycle.py         Shared polling, interrupted submission, and remote cleanup

@@ -6,6 +6,7 @@ from typing import Any
 import torch
 from horde_sdk.ai_horde_api.apimodels import LorasPayloadEntry, TIPayloadEntry
 
+from ...generation.image import ImageSamplingSettings
 from ...generation.request import GenerationSettings
 from ...services.horde import HordeClient
 from ...utils.images import images_to_tensor
@@ -74,73 +75,9 @@ class AIHordeImageGenerate:
                     },
                 ),
                 "api_key": api_key_input(),
-                "steps": (
-                    "INT",
-                    {
-                        "default": 20,
-                        "min": 1,
-                        "max": 100,
-                        "step": 1,
-                        "tooltip": "Number of sampling steps",
-                    },
-                ),
-                "cfg_scale": (
-                    "FLOAT",
-                    {
-                        "default": 7.5,
-                        "min": 1.0,
-                        "max": 20.0,
-                        "step": 0.5,
-                        "tooltip": "Classifier-free guidance scale",
-                    },
-                ),
-                "seed": (
-                    "INT",
-                    {
-                        "default": -1,
-                        "min": -1,
-                        "max": 2147483647,
-                        "tooltip": "Random seed (-1 for random)",
-                    },
-                ),
-                "denoising_strength": (
-                    "FLOAT",
-                    {
-                        "default": 1.0,
-                        "min": 0.0,
-                        "max": 1.0,
-                        "step": 0.01,
-                        "tooltip": "Denoising strength for img2img (0.0-1.0)",
-                    },
-                ),
-                "sampler_name": (
-                    [
-                        "k_lms",
-                        "k_heun",
-                        "k_euler",
-                        "k_euler_a",
-                        "k_dpm_2",
-                        "k_dpm_2_a",
-                        "k_dpm_fast",
-                        "k_dpm_adaptive",
-                        "k_dpmpp_2s_a",
-                        "k_dpmpp_2m",
-                        "dpmsolver",
-                        "k_dpmpp_sde",
-                        "lcms",
-                        "DDIM",
-                    ],
-                    {
-                        "default": "k_lms",
-                        "tooltip": "Sampler algorithm to use",
-                    },
-                ),
-                "karras": (
-                    "BOOLEAN",
-                    {
-                        "default": True,
-                        "tooltip": "Use Karras noise schedule (if supported by model)",
-                    },
+                "sampling": (
+                    "HORDE_IMAGE_SAMPLING",
+                    {"tooltip": "Optional reusable settings from AI Horde Image Sampling. Unconnected uses standard defaults."},
                 ),
                 "loras": (
                     "LORAS_LIST",
@@ -193,22 +130,18 @@ class AIHordeImageGenerate:
         model: str = "",
         negative_prompt: str = "",
         api_key: str = "",
-        steps: int = 20,
-        cfg_scale: float = 7.5,
-        seed: int = -1,
-        denoising_strength: float = 1.0,
-        sampler_name: str = "k_lms",
-        karras: bool = True,
         loras: list[LorasPayloadEntry] | None = None,
         textual_inversions: list[TIPayloadEntry] | None = None,
         source_image: torch.Tensor | None = None,
         source_processing: str = "txt2img",
         source_mask: torch.Tensor | None = None,
+        sampling: ImageSamplingSettings | None = None,
     ) -> tuple[torch.Tensor]:
         from comfy import model_management
 
         check_interrupt = model_management.throw_exception_if_processing_interrupted
         check_interrupt()
+        image_sampling = sampling if sampling is not None else ImageSamplingSettings()
         settings = GenerationSettings(
             prompt=prompt,
             width=width,
@@ -217,12 +150,7 @@ class AIHordeImageGenerate:
             model=model,
             negative_prompt=negative_prompt,
             api_key=api_key,
-            steps=steps,
-            cfg_scale=cfg_scale,
-            seed=seed,
-            denoising_strength=denoising_strength,
-            sampler_name=sampler_name,
-            karras=karras,
+            sampling=image_sampling,
             loras=loras,
             textual_inversions=textual_inversions,
             source_image=source_image,
@@ -232,7 +160,7 @@ class AIHordeImageGenerate:
 
         print(f"Generating {num_images} image(s) with AI Horde...")
         print(
-            f"Model: {model}, Size: {width}x{height}, Steps: {steps}, CFG: {cfg_scale}"
+            f"Model: {model}, Size: {width}x{height}, Steps: {image_sampling.steps}, CFG: {image_sampling.cfg_scale}"
         )
 
         try:
@@ -256,8 +184,8 @@ class AIHordeImageGenerate:
                 print("Debug info:")
                 print(f"  - Model: {model}")
                 print(f"  - Dimensions: {width}x{height}")
-                print(f"  - Steps: {steps}")
-                print(f"  - CFG Scale: {cfg_scale}")
+                print(f"  - Steps: {image_sampling.steps}")
+                print(f"  - CFG Scale: {image_sampling.cfg_scale}")
                 print(f"  - Has source image: {source_image is not None}")
                 print(f"  - Source processing: {source_processing}")
                 print(f"  - Has source mask: {source_mask is not None}")

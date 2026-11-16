@@ -4,6 +4,7 @@ from .nodes.adapters.lora import AIHordeLora
 from .nodes.adapters.textual_inversion import AIHordeTextualInversion
 from .nodes.image.generate import AIHordeImageGenerate
 from .nodes.image.models import AIHordeModelList
+from .nodes.image.sampling import AIHordeImageSampling
 from .nodes.model_select import AIHordeModelSelect
 from .nodes.text.generate import AIHordeTextGenerate
 from .nodes.text.models import AIHordeTextModelList
@@ -14,6 +15,7 @@ from .nodes.text.sampling import AIHordeTextSampling
 NODE_CLASS_MAPPINGS = {
     "AIHordeImageGenerate": AIHordeImageGenerate,
     "AIHordeModelList": AIHordeModelList,
+    "AIHordeImageSampling": AIHordeImageSampling,
     "AIHordeLora": AIHordeLora,
     "AIHordeTextualInversion": AIHordeTextualInversion,
     "AIHordeTextGenerate": AIHordeTextGenerate,
@@ -26,6 +28,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "AIHordeImageGenerate": "AI Horde Image Generate",
     "AIHordeModelList": "AI Horde Model List",
+    "AIHordeImageSampling": "AI Horde Image Sampling",
     "AIHordeLora": "AI Horde LoRA",
     "AIHordeTextualInversion": "AI Horde Textual Inversion",
     "AIHordeTextGenerate": "AI Horde Text Generate",

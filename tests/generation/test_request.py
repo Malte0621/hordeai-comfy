@@ -10,6 +10,7 @@ from horde_sdk import ANON_API_KEY
 from horde_sdk.ai_horde_api.apimodels import ImageGenerateAsyncRequest, LorasPayloadEntry, TIPayloadEntry
 from PIL import Image
 
+from hordeai.generation.image import ImageSamplingSettings
 from hordeai.generation.request import GenerationSettings
 
 
@@ -37,7 +38,7 @@ def decode_webp(value):
 def test_positive_negative_prompts_random_seed_and_anonymous_key(
     negative_prompt, api_key, seed, expected_prompt, expected_key, expected_seed
 ):
-    request = settings(negative_prompt=negative_prompt, api_key=api_key, seed=seed).to_request()
+    request = settings(negative_prompt=negative_prompt, api_key=api_key, sampling=ImageSamplingSettings(seed=seed)).to_request()
 
     assert isinstance(request, ImageGenerateAsyncRequest)
     assert request.prompt == expected_prompt
@@ -76,7 +77,7 @@ def test_source_image_is_rgb_webp_and_mask_keeps_white_modified_regions(processi
         source_image=source,
         source_processing=processing,
         source_mask=mask,
-        denoising_strength=0.35,
+        sampling=ImageSamplingSettings(denoising_strength=0.35),
     ).to_request()
     decoded_source = decode_webp(request.source_image)
     decoded_mask = decode_webp(request.source_mask)
@@ -132,10 +133,10 @@ def test_txt2img_does_not_send_unused_source_or_mask():
         ({"width": 65}, "multiples of 64"),
         ({"height": 513}, "multiples of 64"),
         ({"width": 1280, "height": 1024}, "dimensions too large"),
-        ({"steps": 0}, "Steps must be between 1 and 100"),
-        ({"steps": 101}, "Steps must be between 1 and 100"),
-        ({"cfg_scale": 0.5}, "CFG scale must be between 1.0 and 20.0"),
-        ({"cfg_scale": 20.5}, "CFG scale must be between 1.0 and 20.0"),
+        ({"sampling": ImageSamplingSettings(steps=0)}, "Steps must be between 1 and 100"),
+        ({"sampling": ImageSamplingSettings(steps=101)}, "Steps must be between 1 and 100"),
+        ({"sampling": ImageSamplingSettings(cfg_scale=0.5)}, "CFG scale must be between 1.0 and 20.0"),
+        ({"sampling": ImageSamplingSettings(cfg_scale=20.5)}, "CFG scale must be between 1.0 and 20.0"),
     ],
 )
 def test_existing_user_validation_remains_in_force(overrides, message):
